@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:iam_test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    
+  kafka:
+    bootstrap-servers: localhost:9092
+
+jwt-service:
+  secret-key: this_is_a_mock_secret_key_for_testing_purposes_only_12345
+  expiration-time-ms: 3600000
+  refresh-expiration-time-ms: 86400000

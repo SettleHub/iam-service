@@ -1,0 +1,83 @@
+name: CD Pipeline (Deploy IAM Service)
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline (IAM Service)"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure Maven settings for GitHub Packages
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GITHUB_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
+
+      - name: Make Maven Wrapper Executable
+        run: chmod +x ./mvnw
+
+      - name: Build Maven Project (Skip Tests)
+        run: ./mvnw clean package -DskipTests 
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} 
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/settlehub/iam-service:latest
+
+      - name: Copy compose.yml to Target Machine
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "compose.yml"
+          target: "/opt/settlehub/iam/"
+
+      - name: Deploy to Target Machine via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IAM_DB_URL: ${{ secrets.IAM_DB_URL }}
+          IAM_DB_USERNAME: ${{ secrets.IAM_DB_USERNAME }}
+          IAM_DB_PASSWORD: ${{ secrets.IAM_DB_PASSWORD }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          KAFKA_ADDRESS: ${{ secrets.KAFKA_ADDRESS }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS
+          script: |
+            cd /opt/settlehub/iam/
+            
+            echo "IAM_DB_URL=$IAM_DB_URL" > .env
+            echo "IAM_DB_USERNAME=$IAM_DB_USERNAME" >> .env
+            echo "IAM_DB_PASSWORD=$IAM_DB_PASSWORD" >> .env
+            echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env
+            echo "KAFKA_ADDRESS=$KAFKA_ADDRESS" >> .env
+            
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            docker pull ghcr.io/settlehub/iam-service:latest
+            
+            docker compose up -d
+            
+            docker image prune -a -f --filter "until=24h"
