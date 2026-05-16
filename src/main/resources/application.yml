@@ -1,0 +1,53 @@
+spring:
+  config:
+    import: "optional:file:.env[.properties]"
+  application:
+    name: iam-service
+
+  # KAFKA PROPERTIES
+  kafka:
+    bootstrap-servers: ${KAFKA_ADDRESS}
+    producer:
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  # DATABASE PROPERTIES
+  datasource:
+    url: ${IAM_DB_URL:jdbc:postgresql://localhost:5432/iam-service-db}
+    username: ${IAM_DB_USERNAME}
+    password: ${IAM_DB_PASSWORD}
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            non_contextual_creation: true PostgreSQLDialect
+        enable_lazy_load_no_trans: true
+        format_sql: false
+
+server:
+  port: 8000
+  http2:
+    enabled: true
+  servlet:
+    context-path: /iam/api
+
+# JWT AUTH PROPERTIES
+jwt-service:
+  secret-key: ${JWT_SECRET_KEY}
+  expiration-time-ms: 3600000
+  refresh-expiration-time-ms: 86400000
+
+# LOGGING
+logging:
+  file:
+    name: logs/iam-service.log
+    path: logs
+
+# STATIC PAGES
+template-page:
+  verification: classpath:templates/verification-page.html
+
