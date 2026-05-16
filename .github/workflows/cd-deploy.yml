@@ -1,50 +1,29 @@
-name: CD Pipeline (Deploy IAM Service)
+name: CD Pipeline (Deploy to Server)
 
 on:
   workflow_run:
-    workflows: ["CI Pipeline (IAM Service)"]
+    workflows: ["CD Pipeline (Publish Image)"]
     types:
       - completed
     branches:
       - main
 
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: true
+        default: 'latest'
+
 jobs:
   deploy:
     runs-on: self-hosted
-    permissions:
-      contents: read
-      packages: write
-
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Configure Maven settings for GitHub Packages
-        run: |
-          mkdir -p ~/.m2
-          echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GITHUB_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
-
-      - name: Make Maven Wrapper Executable
-        run: chmod +x ./mvnw
-
-      - name: Build Maven Project (Skip Tests)
-        run: ./mvnw clean package -DskipTests 
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} 
-
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/settlehub/iam-service:latest
 
       - name: Copy compose.yml to Target Machine
         uses: appleboy/scp-action@v0.1.7
@@ -63,14 +42,16 @@ jobs:
           IAM_DB_PASSWORD: ${{ secrets.IAM_DB_PASSWORD }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           KAFKA_ADDRESS: ${{ secrets.KAFKA_ADDRESS }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS
+          envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS,IMAGE_TAG
           script: |
             cd /opt/settlehub/iam/
             
+            # Генеруємо конфіг середовища
             echo "IAM_DB_URL=$IAM_DB_URL" > .env
             echo "IAM_DB_USERNAME=$IAM_DB_USERNAME" >> .env
             echo "IAM_DB_PASSWORD=$IAM_DB_PASSWORD" >> .env
@@ -79,7 +60,7 @@ jobs:
             
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            docker pull ghcr.io/settlehub/iam-service:latest
+            docker pull ghcr.io/settlehub/iam-service:$IMAGE_TAG
             
             docker compose up -d
             
