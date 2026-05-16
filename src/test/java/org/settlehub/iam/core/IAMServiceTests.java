@@ -1,13 +1,12 @@
-package org.settlehub.iam_servicce;
+package org.settlehub.iam.core;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class DemoApplicationTests {
+class IAMServiceTests {
 
-	@Test
-	void contextLoads() {
-	}
+    @Test
+    void contextLoads() { }
 
 }
