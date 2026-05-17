@@ -51,7 +51,6 @@ jobs:
           script: |
             cd /opt/settlehub/iam/
             
-            # Генеруємо конфіг середовища
             echo "IAM_DB_URL=$IAM_DB_URL" > .env
             echo "IAM_DB_USERNAME=$IAM_DB_USERNAME" >> .env
             echo "IAM_DB_PASSWORD=$IAM_DB_PASSWORD" >> .env
