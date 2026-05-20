@@ -1,0 +1,29 @@
+name: Security Deep Scan (TruffleHog)
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline (IAM Service)"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+  # Run every Sunday at 00:00 UTC
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  trufflehog-deep:
+    runs-on: self-hosted
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Deep Scan (Verified & Unverified Secrets)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
