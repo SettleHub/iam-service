@@ -42,12 +42,14 @@ jobs:
           IAM_DB_PASSWORD: ${{ secrets.IAM_DB_PASSWORD }}
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           KAFKA_ADDRESS: ${{ secrets.KAFKA_ADDRESS }}
+          EUREKA_ADDRESS: ${{ secrets.EUREKA_ADDRESS }}
+          IAM_SERVICE_IP: ${{ secrets.IAM_SERVICE_IP }}
           IMAGE_TAG: ${{ github.event.inputs.image_tag || 'latest' }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS,IMAGE_TAG
+          envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS,EUREKA_ADDRESS,IAM_SERVICE_IP,IMAGE_TAG
           script: |
             cd /opt/settlehub/iam/
             
@@ -56,6 +58,8 @@ jobs:
             echo "IAM_DB_PASSWORD=$IAM_DB_PASSWORD" >> .env
             echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> .env
             echo "KAFKA_ADDRESS=$KAFKA_ADDRESS" >> .env
+            echo "EUREKA_ADDRESS=$EUREKA_ADDRESS" >> .env
+            echo "IAM_SERVICE_IP=$IAM_SERVICE_IP" >> .env
             
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
