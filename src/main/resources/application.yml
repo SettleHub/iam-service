@@ -60,4 +60,4 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
-    ip-address: ${IAM_SERVICE_IP}
+    ip-address: ${IAM_SERVICE_IP:127.0.0.1}
