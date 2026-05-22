@@ -15,6 +15,10 @@ services:
       - KAFKA_ADDRESS=${KAFKA_ADDRESS}
       
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+
+      - EUREKA_ADDRESS=${EUREKA_ADDRESS}
+
+      - IAM_SERVICE_IP=${IAM_SERVICE_IP}
       
     deploy:
       resources:
