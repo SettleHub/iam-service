@@ -1,8 +1,8 @@
-name: Security Deep Scan (TruffleHog)
+name: Deep TruffleHog
 
 on:
   workflow_run:
-    workflows: ["CI Pipeline (IAM Service)"]
+    workflows: ["IAM Pipeline"]
     types:
       - completed
     branches:

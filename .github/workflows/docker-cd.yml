@@ -1,22 +1,21 @@
-name: CD Pipeline (Publish Image)
+name: Reusable Docker CD
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline (IAM Service)"]
-    types:
-      - completed
-    branches:
-      - main
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      image-name:
+        required: true
+        type: string
 
 jobs:
-  deploy:
+  docker-push:
     runs-on: self-hosted
     permissions:
       contents: read
       packages: write
-
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -27,9 +26,10 @@ jobs:
           echo "<settings><servers><server><id>github</id><username>${{ github.actor }}</username><password>${{ secrets.GITHUB_TOKEN }}</password></server></servers></settings>" > ~/.m2/settings.xml
 
       - name: Make Maven Wrapper Executable
-        run: chmod +x ./mvnw
+        run: chmod +x  ${{ inputs.working-directory }}/mvnw 
 
       - name: Build Maven Project (Skip Tests)
+        working-directory:  ${{ inputs.working-directory }}
         run: ./mvnw clean package -DskipTests 
 
       - name: Log in to GitHub Container Registry
@@ -37,12 +37,11 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} 
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ${{ inputs.working-directory }}
           push: true
-          tags: ghcr.io/settlehub/iam-service:latest
-
+          tags: ghcr.io/settlehub/${{ inputs.image-name }}:latest
