@@ -1,0 +1,27 @@
+name: Reusable TruffleHog
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+      service-name:
+        required: true
+        type: string
+
+jobs:
+  trufflehog:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ${{ inputs.working-directory }}
+          extra_args: --only-verified

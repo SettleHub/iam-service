@@ -1,26 +1,48 @@
-name: CD Pipeline (Deploy to Server)
+name: IAM Pipeline
 
 on:
-  workflow_run:
-    workflows: ["CD Pipeline (Publish Image)"]
-    types:
-      - completed
-    branches:
-      - main
-
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Docker image tag to deploy'
+        description: 'Docker Image'
         required: true
         default: 'latest'
 
 jobs:
-  deploy:
-    runs-on: self-hosted
-    
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+  ci:
+    uses: ./.github/workflows/java-ci.yml
+    with:
+      working-directory: ./
+      service-name: iam-service
+    secrets: inherit
+  
+  trufflehog:
+    uses: ./.github/workflows/trufflehog.yml
+    with:
+      working-directory: ./
+      service-name: iam-service
+    secrets: inherit
 
+  cd-publish:
+    needs: [ci, trufflehog]
+    uses: ./.github/workflows/docker-cd.yml
+    with:
+      working-directory: ./
+      image-name: iam-service
+    secrets: inherit
+
+  deploy:
+    needs: [cd-publish]
+    runs-on: self-hosted
+
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'    
+    
+    environment: production
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -51,8 +73,9 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: IAM_DB_URL,IAM_DB_USERNAME,IAM_DB_PASSWORD,JWT_SECRET_KEY,KAFKA_ADDRESS,EUREKA_ADDRESS,IAM_SERVICE_IP,IMAGE_TAG
           script: |
+            mkdir -p /opt/settlehub/iam/
             cd /opt/settlehub/iam/
-            
+
             echo "IAM_DB_URL=$IAM_DB_URL" > .env
             echo "IAM_DB_USERNAME=$IAM_DB_USERNAME" >> .env
             echo "IAM_DB_PASSWORD=$IAM_DB_PASSWORD" >> .env
@@ -60,11 +83,8 @@ jobs:
             echo "KAFKA_ADDRESS=$KAFKA_ADDRESS" >> .env
             echo "EUREKA_ADDRESS=$EUREKA_ADDRESS" >> .env
             echo "IAM_SERVICE_IP=$IAM_SERVICE_IP" >> .env
-            
+
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
             docker pull ghcr.io/settlehub/iam-service:$IMAGE_TAG
-            
             docker compose up -d
-            
             docker image prune -a -f --filter "until=24h"
